@@ -7,7 +7,7 @@ const app=express()
 //when we use middleware or config setting we use app.use 
 app.use(cors({
      origin:process.env.CORS_ORIGIN,
-     Credential:true
+     credentials:true
 
 }))
 
@@ -20,7 +20,13 @@ app.use(express.static("public"))//files stored in public file and eveyone shoul
 app.use(cookieParser()) 
 
 
+//Routes import
+import  userRouter from './routes/user.routes.js'
 
+//routes declaration
+app.use("/api/v1/users", userRouter);
+
+// it work like that =>  http://localhost:8000//api/v1/users/register
 
 
 

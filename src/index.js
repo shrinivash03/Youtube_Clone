@@ -1,18 +1,19 @@
 // ***********connecting db through function*******
-
-import express from "express"
-import dotenv from "dotenv"
+//import mongoose from "mongoose";
+//import express from "express"
+import "dotenv/config";
 import connectDB from "./db/index.js";
+import { app } from "./app.js";
 
 
-dotenv.config({
-    path: './env' 
-})
+// dotenv.config({
+//     path: './env' 
+// })
  
 
 //connectDB() //this is wrong practise because this is promise based task 
 
-const app = express();
+//const app = express();
 
 (async () => {
   try {
