@@ -1,8 +1,29 @@
  import { asyncHandler } from "../utils/asyncHandler.js";
- import {ApiError} from "../utils/ApiErrors.js" 
+ import {ApiError} from "../utils/ApiError.js" 
  import {User} from "../models/user.model.js"
  import {uploadOnCloudinary} from "../utils/cloudinary.js"
  import { ApiResponse } from "../utils/ApiResponse.js";
+
+
+ const generateAccessAndRefreshToken= async(userId)=>{
+     try{
+
+        const user=await User.findById(userId)
+        const accessToken = await user.generateAccessToken()
+        const refreshToken = await user.generateRefreshToken() 
+
+        user.refreshToken=refreshToken
+        await user.save({validateBeforeSave: false})// saving refresh token in db
+
+        return {accessToken,refreshToken}
+
+      } catch (error){
+      throw new ApiError(500,"Something went wrong while generating access and refresh token")
+     }
+    }
+     
+
+ 
 
 
  const registerUser= asyncHandler(async (req,res)=> {
@@ -18,9 +39,9 @@
 
 
     const {fullName,email,username,password}=req.body
-     console.log("email:",email);
+     //console.log("email:",email);
        
-     console.log("req.body");
+     //console.log("req.body");
      
      
      if(
@@ -32,7 +53,8 @@
 
       const existedUser= await User.findOne({
         $or:[{ username }, { email }]
-      })   //Checks MongoDB if the user already exists.
+      })   
+      //  $or: mongodb operator Checks in MongoDB if the user already exists.
 
  
 
@@ -44,6 +66,7 @@
       //const coverImageLocalPath= req.files?.coverImage[0]?.path;
 
     //   console.log(req.files);
+    //classic way of writing using && 
      let coverImageLocalPath;
      if(req.files  && Array.isArray(req.files.
       coverImage) &&req.files.coverImage.length > 0){
@@ -106,16 +129,103 @@
     new ApiResponse(200,createdUser,"User registerd Successfully")
    )
 
-   //Send Response to the Client
-
- 
-    }  )
+  //Send Response to the Client
+   } )
 
        
+//****  login user ****** 
 
-    
+
+
+
+const loginUser =asyncHandler(async(req,res)=>{
+       //req body -> data
+       //username or email
+       //find the username
+       //passwordcheck
+       //access and refresh token
+       //send cookie
+ 
+        const {email,password,username}= req.body
+       
+        if ( !(username || !email)){
+          throw new ApiError(500,"please enter valid username or email")
+
+        } // checking username or email is not empty
+
+      const user = await User.findOne({
+          $or:[{username},{email}]
+        }) //checking fields that are alredy in db
+
+
+        if(!user){
+          throw new ApiError(404, "User does not exist")
+        } //if user not found
+
+      
+      const isPasswordValid= await user.isPasswordCorrect(password)
+
+      if(!isPasswordValid){
+        throw new ApiError(401, "Invalid User credentials ")
+      } 
+
+
+  const {accessToken,refreshToken}= await  generateAccessAndRefreshToken(user._id)
+  
+  const loggedInUser=await User.findById(user._id).select("-password,-refreshToken")
+
+    const options={
+      httpOnly:true,
+      secure:true,
+    }
+//cookie will never modified by frontend it can only by server 
+
+
+
+   return res
+   .status(200)
+   .cookie("accessToken",accessToken)
+   .cookie("refreshToken",refreshToken)
+   .json(
+        new ApiResponse(
+          200,
+          {
+            user:loggedInUser,accessToken,refreshToken
+          },
+          "User logged In Successfully"
+        )
+   )
+
+
+  })
+    const loggedOut = asyncHandler(async(req,res)=>{
+          await User.findByIdAndUpdate(
+            req.user._id,
+            {
+              $set:{
+                refreshToken: undefined
+              }
+            },
+            {
+              new:true
+            }
+          )
+           
+          const options={
+            httpOnly:true,
+            secure:true
+          }
+
+          return res
+          .status(200)
+          .clearCookie("accessToken", options)
+          .clearCookie("refreshToken",options)
+          .json(new ApiResponse(200,{},"User logged out "))
+    })
+  
  
 
- export {registerUser
+ export {registerUser,
+  loginUser,loggedOut
 
  } ;
