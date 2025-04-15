@@ -4,7 +4,7 @@
  import {uploadOnCloudinary} from "../utils/cloudinary.js"
  import { ApiResponse } from "../utils/ApiResponse.js";
  import jwt from "jsonwebtoken";
-
+ 
 
  const generateAccessAndRefreshToken= async(userId)=>{
      try{
@@ -237,7 +237,7 @@ const loggedOut = asyncHandler(async(req,res)=>{
     })
   
 
-   const refreshAccessToken= asyncHandler(async(req,res)=>{
+  const refreshAccessToken= asyncHandler(async(req,res)=>{
     const incomingRefreshToken=refreshAccessToken.cookies.refreshToken ||
     req.body.refreshToken //accessing token from cookies or body 
 
@@ -294,7 +294,7 @@ const loggedOut = asyncHandler(async(req,res)=>{
    }) 
  
 
-   const changeCurrentPasword=asyncHandler(async(req,res)=>{
+ const changeCurrentPasword=asyncHandler(async(req,res)=>{
   
     const {oldPassword, newPassword} =req.body
 
@@ -315,14 +315,39 @@ const loggedOut = asyncHandler(async(req,res)=>{
 
    })
 
-   const getCurrentUser=asyncHandler(async(req,res)=>{
+const getCurrentUser=asyncHandler(async(req,res)=>{
     return res
     .status(200)
     .json(200,req.user,"current user fetched successfully")
    })
 
+  const updateAccountDetails=asyncHandler(async(req,res)=>{
+    const {fullName,email}=req.body
+    if(!fullName || !email)
+    {
+      throw new ApiError(400,"All fiels are required")
+    }
+   
+   const user=User.findByIdAndDelete(
+    req.user?._id,
+    {
+      $set:{
+        fullName,
+        email:email
+      } 
+    },
+    {new:true}
+   ).select("-password")
+
+   return res
+   .status(200)
+   .json(new ApiResponse(200,user,"Account details updated successfully"))
+ })
+
  export {registerUser,
   loginUser,loggedOut,generateAccessAndRefreshToken,
-  refreshAccessToken,changeCurrentPasword,getCurrentUser
+  refreshAccessToken,changeCurrentPasword,getCurrentUser,updateAccountDetails
+
+
 
  } ;
