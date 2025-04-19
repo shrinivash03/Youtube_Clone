@@ -170,6 +170,9 @@ const loginUser =asyncHandler(async(req,res)=>{
 
       
       const isPasswordValid= await user.isPasswordCorrect(password)
+//console.log("user:", user);
+//console.log("isPasswordCorrect type:", typeof user.isPasswordCorrect);
+
 
       if(!isPasswordValid){
         throw new ApiError(401, "Invalid User credentials ")
@@ -212,8 +215,8 @@ const loggedOut = asyncHandler(async(req,res)=>{
             // collection by its _id and update it
             req.user._id,
             {
-              $set:{
-                refreshToken: undefined 
+              $unset:{
+                refreshToken: 1 
 
                 // set is mongodb update operator and undefining means preventing it from being used to //generate new token.
 
@@ -221,7 +224,8 @@ const loggedOut = asyncHandler(async(req,res)=>{
             },
             {
               new:true
-            })
+            }
+          )
    //new:true => this tells mongoose to return the modified document after update has been applied         
           
            
@@ -234,11 +238,11 @@ const loggedOut = asyncHandler(async(req,res)=>{
           .status(200)
           .clearCookie("accessToken", options) //this is express.js method res object that clear cookie of the client browser
           .clearCookie("refreshToken",options)
-          .json(new ApiResponse(200,{},"User logged out "))
+          .json(new ApiResponse(200,{},"User logged out"))
     })
   
 
-  const refreshAccessToken= asyncHandler(async(req,res)=>{
+const refreshAccessToken= asyncHandler(async(req,res)=>{
     const incomingRefreshToken= req.cookies.refreshToken ||
     req.body.refreshToken //accessing token from cookies or body 
 
@@ -295,13 +299,23 @@ const loggedOut = asyncHandler(async(req,res)=>{
    }) 
  
 
- const changeCurrentPasword=asyncHandler(async(req,res)=>{
+const changeCurrentPasword=asyncHandler(async(req,res)=>{
   
-    const {oldPassword, newPassword} =req.body
+   const {oldPassword, newPassword} =req.body
+   console.log("req.body",req.body);
 
 
-  const user= User.findById(req.user?._id)
+  const user= await User.findById(req.user?._id)
+  //req is coming from auth middleware
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+ // console.log("user", user);
+
   const isPasswordCorrect= await user.isPasswordCorrect(oldPassword)
+
+  //console.log("has isPasswordCorrect?", typeof user.isPasswordCorrect);
+
    if(!isPasswordCorrect)
     {
     throw new ApiError(400,"Invalid Password")
@@ -321,22 +335,21 @@ const getCurrentUser=asyncHandler(async(req,res)=>{
     .status(200)
     .json ( new ApiResponse (200,req.user,"current user fetched successfully"))
    })
-
-  
- const updateAccountDetails=asyncHandler(async(req,res)=>{
-    const {fullName,email}=req.body
+ 
+const  updateAccountDetails = asyncHandler(async(req,res)=>{
+    const {fullName,email}= await req.body
+   // console.log("req.body",req.body);
     if(!fullName || !email)
     {
       throw new ApiError(400,"All fiels are required")
     }
    
-   const user=await User.findByIdAndDelete(
+   const user=await User.findByIdAndUpdate(
     req.user?._id,
     {
       $set:{
         fullName,
-        email:email
-      } 
+        email      } 
     },
     {new:true}
    ).select("-password")
@@ -347,32 +360,35 @@ const getCurrentUser=asyncHandler(async(req,res)=>{
  })
 
 
- const updateUserAvatar=asyncHandler(async(req,res)=>
+const updateUserAvatar=asyncHandler(async(req,res)=>
    {
-  const avatarLocalPath= req.file?.path //file not files bcz we are manupulating single file
+  const avatarLocalPath= req.file?.path   // file not files bcz we are manupulating single file
    
   if(!avatarLocalPath){
     throw new ApiError(400,"Avtar file is missing")
   }
 
+  const user = await User.findById(req.user?._id);
 
-  
+//🧹 Step 1: Delete old avatar if it exists
+  if (user.avatarPublicId) {
+    await deleteFromCloudinary(user.avatarPublicId);
+  }
 
-    const avatar=await uploadOnCloudinary(avatarLocalPath)
+const avatar=await uploadOnCloudinary(avatarLocalPath)
      if(!avatar){
       throw new ApiError(400,"Error while uploading Avatar file on cloudinary")
       }
+    
+      
 
-  //Fetch the old avatar URL from the DB
-  const user = await User.findById(req.user?._id);
-  const oldAvatarURL=user?.avatar?.url;
-  
-
+ //🧹 Step 2: Update user with new avatar URL and public ID
 const updatedUser= await User.findByIdAndUpdate(
       req.user?._id,
       {
         $set:{
-          avatar:avatar.url
+          avatar:avatar.url,   // or avatar.secure_url is also fine
+          avatarPublicId: avatar.public_id
         }
       },
       {new:true}
@@ -384,9 +400,7 @@ return res
   new ApiResponse(200,updatedUser,"Avatar image is updated successfully")
 )
 
-  
-
- })
+})
  
  
 
@@ -398,15 +412,25 @@ return res
  if(!coverImageLocalPath){
    throw new ApiError(400,"Avtar file is missing")
  }
+
+ const user = await User.findById(req.user?._id);
+
+ //🧹 Step 1: Delete old avatar if it exists
+   if (user.coverImagePublicId) {
+     await deleteFromCloudinary(user.coverImagePublicId);
+   }
+
    const coverImage=await uploadOnCloudinary(coverImageLocalPath)
     if(!coverImage){
      throw new ApiError(400,"Error while uploading coverImage file on cloudinary")
     }
-const user= await User.findByIdAndUpdate(
+const updatedUser= await User.findByIdAndUpdate(
      req.user?._id,
      {
        $set:{
-         avatar:coverImage.url
+         coverImage:coverImage.url,
+         coverImagePublicId: coverImage.public_id,
+
        }
      },
      {new:true}
@@ -415,7 +439,7 @@ const user= await User.findByIdAndUpdate(
 return res
 .status(200)
 .json(
- new ApiResponse(200,user,"coverImage is updated successfully")
+ new ApiResponse(200,updatedUser,"coverImage is updated successfully")
 )
 
 }) 
@@ -550,13 +574,7 @@ const getWatchHistory =asyncHandler(async(req,res)=>{
      
 
 
-    
-
-
-
-
-
- export {registerUser,
+    export {registerUser,
   loginUser,loggedOut,generateAccessAndRefreshToken,
   refreshAccessToken,changeCurrentPasword,getCurrentUser,updateAccountDetails,
   updateUserAvatar,updateUserCoverImage,getUserChannelProfile,getWatchHistory

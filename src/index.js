@@ -9,7 +9,7 @@ import { app } from "./app.js";
 // dotenv.config({
 //     path: './env' 
 // })
-console.log("ACCESS_TOKEN_SECRET:", process.env.ACCESS_TOKEN_SECRET);
+//console.log("ACCESS_TOKEN_SECRET:", process.env.ACCESS_TOKEN_SECRET);
 
 //connectDB() //this is wrong practise because this is promise based task 
 

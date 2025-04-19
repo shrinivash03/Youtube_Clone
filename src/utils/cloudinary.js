@@ -41,8 +41,20 @@ import fs from "fs"
     }
 
 
+// ✅ ADD THIS FUNCTION TO DELETE FROM CLOUDINARY
+    const deleteFromCloudinary = async (publicId) => {
+    try {
+      const result = await cloudinary.uploader.destroy(publicId);
+      return result;
+    } catch (error) {
+      console.error("Cloudinary deletion error:", error);
+      return null;
+    }
+  };
+
+
 
     //If there’s an error
    //The locally saved temporary file is deleted using fs.unlink().
 
-    export {uploadOnCloudinary}
+    export {uploadOnCloudinary,deleteFromCloudinary}

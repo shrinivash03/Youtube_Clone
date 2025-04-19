@@ -36,12 +36,20 @@
           type:String,// using cloudinary URL
           required:true
        },
+       
+       avatarPublicId: {
+         type: String,
+       },
 
       coverImage:
          {
             type:String,//cloudinary url
             required:false
          },
+
+         coverImagePublicId: {
+            type: String,
+          },
 
        watchHistory:[
        {
@@ -89,7 +97,7 @@ userSchema.methods.generateAccessToken=function(){
         username:this.username,
         fullName:this.fullName
     },
-    process.env.ACCESS_TOKEN_EXPIRY,
+    process.env.ACCESS_TOKEN_SECRET,
     {
         expiresIn: process.env.ACCESS_TOKEN_EXPIRY
     }
